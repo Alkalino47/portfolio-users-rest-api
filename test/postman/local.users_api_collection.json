@@ -1,0 +1,1113 @@
+{
+  "info": {
+    "_postman_id": "87c7eebc-8a99-4f3b-9f1f-local-users-api",
+    "name": "Local Users API",
+    "description": "Endpoint tests for Users API authentication, users, and login logs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Login seeded user",
+          "auth": {
+            "type": "noauth"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('returns token', function () {",
+                  "  pm.expect(json.token.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(json.token.tokenType).to.eql('Bearer');",
+                  "  pm.expect(json.userRole).to.eql(pm.environment.get('seedUserRole'));",
+                  "  pm.expect(json).to.not.have.property('userRoleId');",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "});",
+                  "",
+                  "pm.environment.set('accessToken', json.token.accessToken);",
+                  "pm.environment.set('tokenExpiresAtUtc', json.token.expiresAtUtc);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{seedUserName}}\",\n  \"userPass\": \"{{seedUserPass}}\"\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/auth/login",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Get users without token returns 401",
+          "auth": {
+            "type": "noauth"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user?pageNumber=1&pageSize=10",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}",
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get users returns paginated result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('response has pagination and items', function () {",
+                  "  pm.expect(json).to.have.property('pagination');",
+                  "  pm.expect(json).to.have.property('items');",
+                  "  pm.expect(json.items).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('pagination matches request', function () {",
+                  "  pm.expect(json.pagination.pageNumber).to.eql(2);",
+                  "  pm.expect(json.pagination.pageSize).to.eql(10);",
+                  "});",
+                  "",
+                  "pm.test('items include user role description', function () {",
+                  "  if (json.items.length > 0) {",
+                  "    pm.expect(json.items[0]).to.have.property('userRole');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user?pageNumber=2&pageSize=10&sortBy=userName&sortDirection=asc",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ],
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "2"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "userName"
+                },
+                {
+                  "key": "sortDirection",
+                  "value": "asc"
+                }
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Create user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('testUserName', `postman-user-${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('created user has expected shape', function () {",
+                  "  pm.expect(json.userId).to.be.a('number');",
+                  "  pm.expect(json.userName).to.eql(pm.environment.get('testUserName'));",
+                  "  pm.expect(String(json.userRoleId)).to.eql(pm.environment.get('testUserRoleId'));",
+                  "  pm.expect(json.userRole).to.eql(pm.environment.get('testUserRole'));",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "  pm.expect(json.isActive).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('location header is present', function () {",
+                  "  pm.response.to.have.header('Location');",
+                  "});",
+                  "",
+                  "pm.environment.set('testUserId', String(json.userId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{testUserName}}\",\n  \"userPass\": \"{{testUserPass}}\",\n  \"userRoleId\": {{testUserRoleId}},\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Login user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('returns authenticated user without password', function () {",
+                  "  pm.expect(String(json.userId)).to.eql(pm.environment.get('testUserId'));",
+                  "  pm.expect(json.userName).to.eql(pm.environment.get('testUserName'));",
+                  "  pm.expect(json.userRole).to.eql(pm.environment.get('testUserRole'));",
+                  "  pm.expect(json).to.not.have.property('userRoleId');",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "  pm.expect(json.token.accessToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(json.token.tokenType).to.eql('Bearer');",
+                  "  pm.expect(json.isActive).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.environment.set('accessToken', json.token.accessToken);",
+                  "pm.environment.set('tokenExpiresAtUtc', json.token.expiresAtUtc);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{testUserName}}\",\n  \"userPass\": \"{{testUserPass}}\"\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/auth/login",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          },
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "Login user with invalid password returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('problem details are returned', function () {",
+                  "  pm.expect(json).to.have.property('status', 401);",
+                  "  pm.expect(json).to.have.property('errorCode', 'unauthorized');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{testUserName}}\",\n  \"userPass\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/auth/login",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          },
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "Get user by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('returns the created user', function () {",
+                  "  pm.expect(String(json.userId)).to.eql(pm.environment.get('testUserId'));",
+                  "  pm.expect(json.userName).to.eql(pm.environment.get('testUserName'));",
+                  "  pm.expect(String(json.userRoleId)).to.eql(pm.environment.get('testUserRoleId'));",
+                  "  pm.expect(json.userRole).to.eql(pm.environment.get('testUserRole'));",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user/{{testUserId}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "{{testUserId}}"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Update user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('testUserName', `postman-user-updated-${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('updates user name and active state', function () {",
+                  "  pm.expect(String(json.userId)).to.eql(pm.environment.get('testUserId'));",
+                  "  pm.expect(json.userName).to.eql(pm.environment.get('testUserName'));",
+                  "  pm.expect(String(json.userRoleId)).to.eql(pm.environment.get('testUserRoleId'));",
+                  "  pm.expect(json.userRole).to.eql(pm.environment.get('testUserRole'));",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "  pm.expect(json.isActive).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{testUserId}},\n  \"userName\": \"{{testUserName}}\",\n  \"userPass\": \"{{testUserPass}}\",\n  \"userRoleId\": {{testUserRoleId}},\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user/{{testUserId}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "{{testUserId}}"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Patch user active status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('sets user active', function () {",
+                  "  pm.expect(String(json.userId)).to.eql(pm.environment.get('testUserId'));",
+                  "  pm.expect(json).to.not.have.property('userPass');",
+                  "  pm.expect(json.isActive).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user/{{testUserId}}/active",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "{{testUserId}}",
+                "active"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Delete user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204', function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('response body is empty', function () {",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user/{{testUserId}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "{{testUserId}}"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Get deleted user returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('problem details are returned', function () {",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status', 404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user/{{testUserId}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "{{testUserId}}"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Create user validation returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('validation problem details are returned', function () {",
+                  "  pm.expect(json).to.have.property('title');",
+                  "  pm.expect(json).to.have.property('status', 400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        },
+        {
+          "name": "Get users validation returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('validation error is returned for invalid page size', function () {",
+                  "  pm.expect(json).to.have.property('status', 400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/user?pageNumber=1&pageSize=101",
+              "host": [
+                "{{api_host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ],
+              "query": [
+                {
+                  "key": "pageNumber",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "101"
+                }
+              ],
+              "protocol": "{{protocol}}",
+              "port": "{{port}}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "LoginLogs",
+      "description": "Run SQL/LoginLogs-table-creation.sql before testing. Run Users / Login seeded user first to capture the shared accessToken. Successful POST requests insert rows in dbo.LoginLogs and save the latest generated ID as loginLogId. LoginTime is sent without an offset and is interpreted in the API machine's local time zone.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const now = new Date();",
+              "const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000);",
+              "pm.variables.set('loginLogTime', localTime.toISOString().slice(0, -1));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Create successful login log",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "const expected = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+                  "pm.test('returns the generated LogId and all supplied fields', function () {",
+                  "  pm.expect(json.logId).to.be.a('number').and.above(0);",
+                  "  ['username', 'success', 'ipAddress', 'userAgent', 'errorMessage'].forEach(function (field) {",
+                  "    pm.expect(json[field], field).to.eql(expected[field]);",
+                  "  });",
+                  "  pm.expect(Date.parse(json.loginTime)).to.eql(Date.parse(expected.loginTime));",
+                  "});",
+                  "pm.environment.set('loginLogId', String(json.logId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginLogUsername}}\",\n  \"loginTime\": \"{{loginLogTime}}\",\n  \"success\": true,\n  \"ipAddress\": \"127.0.0.1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create failed login log with IPv6 address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "const expected = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+                  "pm.test('returns the generated LogId and all supplied fields', function () {",
+                  "  pm.expect(json.logId).to.be.a('number').and.above(0);",
+                  "  ['username', 'success', 'ipAddress', 'userAgent', 'errorMessage'].forEach(function (field) {",
+                  "    pm.expect(json[field], field).to.eql(expected[field]);",
+                  "  });",
+                  "  pm.expect(Date.parse(json.loginTime)).to.eql(Date.parse(expected.loginTime));",
+                  "});",
+                  "pm.environment.set('loginLogId', String(json.logId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginLogUsername}}\",\n  \"loginTime\": \"{{loginLogTime}}\",\n  \"success\": false,\n  \"ipAddress\": \"2001:db8::1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"Invalid username or password.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Missing required fields returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('identifies invalid fields', function () {",
+                  "  pm.expect(json.status).to.eql(400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "  [\"Username\", \"LoginTime\", \"Success\", \"IpAddress\", \"UserAgent\", \"ErrorMessage\"].forEach(function (field) {",
+                  "    pm.expect(json.errors).to.have.property(field);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Missing login time returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('identifies invalid fields', function () {",
+                  "  pm.expect(json.status).to.eql(400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "  [\"LoginTime\"].forEach(function (field) {",
+                  "    pm.expect(json.errors).to.have.property(field);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginLogUsername}}\",\n  \"success\": true,\n  \"ipAddress\": \"127.0.0.1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Missing success returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('identifies invalid fields', function () {",
+                  "  pm.expect(json.status).to.eql(400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "  [\"Success\"].forEach(function (field) {",
+                  "    pm.expect(json.errors).to.have.property(field);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginLogUsername}}\",\n  \"loginTime\": \"{{loginLogTime}}\",\n  \"ipAddress\": \"127.0.0.1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Oversized username returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', function () { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('identifies invalid fields', function () {",
+                  "  pm.expect(json.status).to.eql(400);",
+                  "  pm.expect(json).to.have.property('errors');",
+                  "  [\"Username\"].forEach(function (field) {",
+                  "    pm.expect(json.errors).to.have.property(field);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"loginTime\": \"{{loginLogTime}}\",\n  \"success\": true,\n  \"ipAddress\": \"127.0.0.1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Missing bearer token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginLogUsername}}\",\n  \"loginTime\": \"{{loginLogTime}}\",\n  \"success\": true,\n  \"ipAddress\": \"127.0.0.1\",\n  \"userAgent\": \"PostmanRuntime/7.45.0\",\n  \"errorMessage\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{api_host}}:{{port}}/api/v1/loginlogs",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{api_host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "api",
+                "v1",
+                "loginlogs"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": []
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": []
+      }
+    }
+  ],
+  "variable": [],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}

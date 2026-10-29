@@ -1,0 +1,64 @@
+# Build output, generated metadata, and test results
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Local editor and operating-system files
+.DS_Store
+._*
+.vs/
+.vscode/
+.idea/
+.codex/
+.agents/
+*.user
+*.suo
+*.sln.docstates
+*.swp
+*.tmp
+*.log
+logs/
+
+# Runtime settings stay local; publish only the sanitized template
+appsettings*.json
+!/appsettings.example.json
+.env
+.env.*
+!.env.example
+secrets.json
+*.local.json
+
+# Postman environments may contain passwords and captured access tokens
+*.postman_environment.json
+/test/postman/*environment.json
+!/test/postman/example.users_api_environment.json
+
+# These existing files contain the local seed account password or its hash.
+# Keep them unchanged on this machine and out of the public repository.
+/SQL/Users-table-population.sql
+/SQL/Users-add-userpass-column.sql
+/tests/UsersApi.Tests/PasswordHasherTests.cs
+*.local.sql
+
+# Private keys, certificates, credentials, and database exports
+.aws/
+.ssh/
+*.pfx
+*.p12
+*.pem
+*.key
+*.snk
+*.jks
+*.keystore
+*.bak
+*.bacpac
+*.dacpac
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
